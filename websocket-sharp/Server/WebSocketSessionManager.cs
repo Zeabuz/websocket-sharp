@@ -41,15 +41,15 @@ namespace WebSocketSharp.Server
   /// Provides the management function for the sessions in a WebSocket service.
   /// </summary>
   /// <remarks>
-  /// This class manages the sessions in a WebSocket service provided by
-  /// the <see cref="WebSocketServer"/> or <see cref="HttpServer"/>.
+  /// This class manages the sessions in a WebSocket service provided by the
+  /// <see cref="WebSocketServer"/> or <see cref="HttpServer"/> class.
   /// </remarks>
   public class WebSocketSessionManager
   {
     #region Private Fields
 
-    private volatile bool                         _clean;
     private object                                _forSweep;
+    private volatile bool                         _keepClean;
     private Logger                                _log;
     private Dictionary<string, IWebSocketSession> _sessions;
     private volatile ServerState                  _state;
@@ -66,8 +66,8 @@ namespace WebSocketSharp.Server
     {
       _log = log;
 
-      _clean = true;
       _forSweep = new object ();
+      _keepClean = true;
       _sessions = new Dictionary<string, IWebSocketSession> ();
       _state = ServerState.Ready;
       _sync = ((ICollection) _sessions).SyncRoot;
@@ -172,7 +172,7 @@ namespace WebSocketSharp.Server
     }
 
     /// <summary>
-    /// Gets the session instance with <paramref name="id"/>.
+    /// Gets the session instance with the specified ID.
     /// </summary>
     /// <value>
     ///   <para>
@@ -185,7 +185,7 @@ namespace WebSocketSharp.Server
     ///   </para>
     /// </value>
     /// <param name="id">
-    /// A <see cref="string"/> that represents the ID of the session to find.
+    /// A <see cref="string"/> that specifies the ID of the session to find.
     /// </param>
     /// <exception cref="ArgumentNullException">
     /// <paramref name="id"/> is <see langword="null"/>.
@@ -202,6 +202,7 @@ namespace WebSocketSharp.Server
           throw new ArgumentException ("An empty string.", "id");
 
         IWebSocketSession session;
+
         tryGetSession (id, out session);
 
         return session;
@@ -222,23 +223,15 @@ namespace WebSocketSharp.Server
     /// </value>
     public bool KeepClean {
       get {
-        return _clean;
+        return _keepClean;
       }
 
       set {
-        string msg;
-        if (!canSet (out msg)) {
-          _log.Warn (msg);
-          return;
-        }
-
         lock (_sync) {
-          if (!canSet (out msg)) {
-            _log.Warn (msg);
+          if (!canSet ())
             return;
-          }
 
-          _clean = value;
+          _keepClean = value;
         }
       }
     }
@@ -270,8 +263,8 @@ namespace WebSocketSharp.Server
     }
 
     /// <summary>
-    /// Gets or sets the time to wait for the response to the WebSocket Ping or
-    /// Close.
+    /// Gets or sets the time to wait for the response to the WebSocket Ping
+    /// or Close.
     /// </summary>
     /// <remarks>
     /// The set operation does nothing if the service has already started or
@@ -289,20 +282,15 @@ namespace WebSocketSharp.Server
       }
 
       set {
-        if (value <= TimeSpan.Zero)
-          throw new ArgumentOutOfRangeException ("value", "Zero or less.");
+        if (value <= TimeSpan.Zero) {
+          var msg = "It is zero or less.";
 
-        string msg;
-        if (!canSet (out msg)) {
-          _log.Warn (msg);
-          return;
+          throw new ArgumentOutOfRangeException ("value", msg);
         }
 
         lock (_sync) {
-          if (!canSet (out msg)) {
-            _log.Warn (msg);
+          if (!canSet ())
             return;
-          }
 
           _waitTime = value;
         }
@@ -399,21 +387,9 @@ namespace WebSocketSharp.Server
       return ret;
     }
 
-    private bool canSet (out string message)
+    private bool canSet ()
     {
-      message = null;
-
-      if (_state == ServerState.Start) {
-        message = "The service has already started.";
-        return false;
-      }
-
-      if (_state == ServerState.ShuttingDown) {
-        message = "The service is shutting down.";
-        return false;
-      }
-
-      return true;
+      return _state == ServerState.Ready || _state == ServerState.Stop;
     }
 
     private static string createID ()
@@ -532,7 +508,7 @@ namespace WebSocketSharp.Server
     internal void Start ()
     {
       lock (_sync) {
-        _sweepTimer.Enabled = _clean;
+        _sweepTimer.Enabled = _keepClean;
         _state = ServerState.Start;
       }
     }
