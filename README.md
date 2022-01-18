@@ -277,7 +277,7 @@ namespace Example
     protected override void OnMessage (MessageEventArgs e)
     {
       var msg = e.Data == "BALUS"
-                ? "I've been balused already..."
+                ? "Are you kidding?"
                 : "I'm not available now.";
 
       Send (msg);
@@ -289,6 +289,7 @@ namespace Example
     public static void Main (string[] args)
     {
       var wssv = new WebSocketServer ("ws://dragonsnest.far");
+
       wssv.AddWebSocketService<Laputa> ("/Laputa");
       wssv.Start ();
       Console.ReadKey (true);
@@ -340,13 +341,18 @@ public class Chat : WebSocketBehavior
   private string _suffix;
 
   public Chat ()
-    : this (null)
   {
+    _suffix = String.Empty;
   }
 
-  public Chat (string suffix)
-  {
-    _suffix = suffix ?? String.Empty;
+  public string Suffix {
+    get {
+      return _suffix;
+    }
+
+    set {
+      _suffix = value ?? String.Empty;
+    }
   }
 
   protected override void OnMessage (MessageEventArgs e)
@@ -374,16 +380,15 @@ Creating a new instance of the `WebSocketServer` class.
 
 ```csharp
 var wssv = new WebSocketServer (4649);
+
 wssv.AddWebSocketService<Echo> ("/Echo");
 wssv.AddWebSocketService<Chat> ("/Chat");
-wssv.AddWebSocketService<Chat> ("/ChatWithNyan", () => new Chat (" Nyan!"));
+wssv.AddWebSocketService<Chat> ("/ChatWithNyan", s => s.Suffix = " Nyan!");
 ```
 
-You can add any WebSocket service to your `WebSocketServer` with the specified behavior and absolute path to the service, by using the `WebSocketServer.AddWebSocketService<TBehaviorWithNew> (string)` or `WebSocketServer.AddWebSocketService<TBehavior> (string, Func<TBehavior>)` method.
+You can add any WebSocket service to your `WebSocketServer` with the specified behavior and absolute path to the service, by using the `WebSocketServer.AddWebSocketService<TBehavior> (string)` or `WebSocketServer.AddWebSocketService<TBehavior> (string, Action<TBehavior>)` method.
 
-The type of `TBehaviorWithNew` must inherit the `WebSocketBehavior` class, and must have a public parameterless constructor.
-
-The type of `TBehavior` must inherit the `WebSocketBehavior` class.
+The type of `TBehavior` must inherit the `WebSocketBehavior` class, and must have a public parameterless constructor.
 
 So you can use a class in the above Step 2 to add the service.
 
@@ -404,12 +409,8 @@ wssv.Start ();
 Stopping the WebSocket server.
 
 ```csharp
-wssv.Stop (code, reason);
+wssv.Stop ();
 ```
-
-The `WebSocketServer.Stop` method is overloaded.
-
-You can use the `WebSocketServer.Stop ()`, `WebSocketServer.Stop (ushort, string)`, or `WebSocketServer.Stop (WebSocketSharp.CloseStatusCode, string)` method to stop the server.
 
 ### HTTP Server with the WebSocket ###
 
@@ -417,13 +418,14 @@ I have modified the `System.Net.HttpListener`, `System.Net.HttpListenerContext`,
 
 So websocket-sharp provides the `WebSocketSharp.Server.HttpServer` class.
 
-You can add any WebSocket service to your `HttpServer` with the specified behavior and path to the service, by using the `HttpServer.AddWebSocketService<TBehaviorWithNew> (string)` or `HttpServer.AddWebSocketService<TBehavior> (string, Func<TBehavior>)` method.
+You can add any WebSocket service to your `HttpServer` with the specified behavior and path to the service, by using the `HttpServer.AddWebSocketService<TBehavior> (string)` or `HttpServer.AddWebSocketService<TBehavior> (string, Action<TBehavior>)` method.
 
 ```csharp
 var httpsv = new HttpServer (4649);
+
 httpsv.AddWebSocketService<Echo> ("/Echo");
 httpsv.AddWebSocketService<Chat> ("/Chat");
-httpsv.AddWebSocketService<Chat> ("/ChatWithNyan", () => new Chat (" Nyan!"));
+httpsv.AddWebSocketService<Chat> ("/ChatWithNyan", s => s.Suffix = " Nyan!");
 ```
 
 For more information, would you see **[Example3]**?
